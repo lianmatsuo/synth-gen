@@ -1,0 +1,142 @@
+# NHANES 2017-2020 Data Schema Specification
+# Defines data types, allowed ranges, null policies, and business rules
+
+schema_version: "1.0.0"
+dataset: "nhanes_2017_2020"
+
+# Entity identifier
+entity_id:
+  column: "SEQN"
+  type: "integer"
+  required: true
+  unique: true
+  description: "Unique sequence number identifying each participant"
+
+# Data type mappings
+column_types:
+  # Demographics
+  SDDSRVYR:
+    type: "ordinal"
+    description: "Data release cycle"
+    allowed_values: [1, 2]  # 2017-2018, 2019-2020
+    null_policy: "not_allowed"
+  
+  RIAGENDR:
+    type: "categorical"
+    description: "Gender"
+    allowed_values: [1, 2]  # 1=Male, 2=Female
+    null_policy: "not_allowed"
+  
+  RIDAGEYR:
+    type: "numeric"
+    description: "Age in years"
+    range: [0, 150]
+    null_policy: "not_allowed"
+  
+  RIDRETH1:
+    type: "categorical"
+    description: "Race/Hispanic origin"
+    allowed_values: [1, 2, 3, 4, 5, 7, 9]
+    null_policy: "impute"  # Some missing values exist
+  
+  DMDEDUC2:
+    type: "ordinal"
+    description: "Education level"
+    allowed_values: [1, 2, 3, 4, 5, 7, 9]
+    null_policy: "impute"
+  
+  DMDMARTZ:
+    type: "categorical"
+    description: "Marital status"
+    allowed_values: [1, 2, 3, 4, 5, 6, 77, 99]
+    null_policy: "impute"
+
+# Variable categories
+variable_categories:
+  demographics:
+    - SEQN
+    - SDDSRVYR
+    - RIAGENDR
+    - RIDAGEYR
+    - RIDRETH1
+    - DMDEDUC2
+    - DMDMARTZ
+  
+  laboratory:
+    prefix: ["P_"]
+    description: "All laboratory test results"
+    type: "numeric"
+    null_policy: "allow"  # Many lab values are missing (not all participants have all tests)
+    range: "variable"  # Each lab test has its own range
+  
+  questionnaire:
+    prefix: ["P_"]
+    description: "Questionnaire responses"
+    type: "mixed"  # Can be numeric, ordinal, or categorical
+    null_policy: "allow"
+  
+  examination:
+    prefix: ["P_"]
+    description: "Physical examination measurements"
+    type: "numeric"
+    null_policy: "allow"
+
+# Business rules
+business_rules:
+  - rule: "Age must be non-negative"
+    columns: ["RIDAGEYR"]
+    constraint: ">= 0"
+  
+  - rule: "Gender-specific variables should be null for opposite gender"
+    example: "Pregnancy variables null for males"
+    constraint: "conditional_null"
+  
+  - rule: "Missing values > 95% should be treated as not applicable"
+    threshold: 0.95
+    action: "drop_column"
+
+# Preprocessing rules
+preprocessing:
+  missing_value_threshold: 0.95  # Drop columns with >95% missing
+  rare_category_threshold: 0.01  # Categories with <1% frequency
+  outlier_method: "iqr"  # Use IQR for outlier detection
+  outlier_threshold: 3.0  # 3 IQR for outlier detection
+  
+  scaling:
+    numeric: "standard"  # StandardScaler for numeric features
+    ordinal: "minmax"    # MinMaxScaler for ordinal features
+  
+  encoding:
+    categorical: "onehot"  # One-hot encoding for categorical
+    ordinal: "ordinal"     # Ordinal encoding for ordered categories
+
+# Target variables (examples - adjust based on your use case)
+targets:
+  primary:
+    name: "DIQ010"  # Doctor told you have diabetes
+    type: "binary"
+    description: "Diabetes diagnosis"
+    null_policy: "drop_row"  # Drop rows with missing target
+  
+  secondary:
+    - name: "BPQ020"  # Ever told you had high blood pressure
+      type: "binary"
+    - name: "MCQ160A"  # Ever told you had coronary heart disease
+      type: "binary"
+
+# Rare classes for stratification
+rare_classes:
+  - column: "DIQ010"
+    threshold: 0.05  # <5% is considered rare
+  - column: "RIDRETH1"
+    threshold: 0.01  # <1% is considered rare
+
+# Output specification
+output:
+  train_split: 0.6
+  val_split: 0.2
+  test_split: 0.2
+  stratification:
+    enabled: true
+    columns: ["DIQ010"]  # Stratify on primary target
+    rare_class_handling: "combine"  # Combine rare classes for stratification
