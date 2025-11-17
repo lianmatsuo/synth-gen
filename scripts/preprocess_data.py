@@ -11,6 +11,7 @@ import yaml
 import hashlib
 import json
 import argparse
+import random
 from pathlib import Path
 from datetime import datetime
 from sklearn.model_selection import train_test_split
@@ -25,14 +26,15 @@ warnings.filterwarnings('ignore')
 class DataPreprocessor:
     """Data preprocessing pipeline for synthetic data generation."""
     
-    def __init__(self, random_seed=42, missing_threshold=0.95):
+    def __init__(self, random_seed=50, missing_threshold=0.95):
         self.random_seed = random_seed
         self.missing_threshold = missing_threshold
         self.version_hash = None
         self.config_snapshot = {}
         self.transformers = {}
         
-        # Set random seed
+        # Set random seed for reproducibility
+        random.seed(random_seed)
         np.random.seed(random_seed)
     
     def _compute_dataset_hash(self, df):
