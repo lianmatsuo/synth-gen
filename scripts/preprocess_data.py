@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Generic data preprocessing pipeline.
-Handles train/val/test splits, schema validation, preprocessing, and versioning.
-Works with any dataset that has a schema specification.
+Handles train/val/test splits, preprocessing, and versioning.
+Works with any dataset - automatically detects column types.
 """
 
 import pandas as pd
