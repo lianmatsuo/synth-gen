@@ -19,6 +19,7 @@ class TabularPreprocessor:
         numeric_cols: list[str],
         categorical_cols: list[str],
         int_cols: list[str] | None = None,
+        max_missing_ratio: float | None = 0.5,
     ):
         """Initialize preprocessor.
 
@@ -26,15 +27,20 @@ class TabularPreprocessor:
             numeric_cols: List of numeric column names.
             categorical_cols: List of categorical column names.
             int_cols: Optional list of numeric columns to cast to int on inverse.
+            max_missing_ratio: Maximum ratio of missing values per row (0.0-1.0).
+                              Rows with more missing values are dropped.
+                              Default 0.5 (50%). Set to None to disable filtering.
         """
         self.numeric_cols = list(numeric_cols)
         self.categorical_cols = list(categorical_cols)
         self.int_cols = list(int_cols) if int_cols else []
+        self.max_missing_ratio = max_missing_ratio
 
         self.scaler: MinMaxScaler | None = None
         self.dummy_columns: list[str] | None = None
         self.cat_groups: dict[str, list[str]] | None = None
         self._is_fitted = False
+        self._n_rows_filtered: int = 0
 
     def fit(self, df: pd.DataFrame) -> "TabularPreprocessor":
         """Fit the preprocessor on training data.
@@ -45,6 +51,10 @@ class TabularPreprocessor:
         Returns:
             self
         """
+        # Filter rows with majority missing values if enabled
+        if self.max_missing_ratio is not None:
+            df = self._filter_missing_rows(df, is_fit=True)
+
         # Build dummy-encoded DataFrame for categoricals
         df_cat = df[self.categorical_cols].astype("category")
         df_dummies = pd.get_dummies(df_cat, dummy_na=True)
@@ -69,6 +79,37 @@ class TabularPreprocessor:
         self._is_fitted = True
         return self
 
+    def _filter_missing_rows(
+        self, df: pd.DataFrame, is_fit: bool = False
+    ) -> pd.DataFrame:
+        """Filter out rows with majority missing values.
+
+        Args:
+            df: DataFrame to filter.
+            is_fit: If True, store the count of filtered rows.
+
+        Returns:
+            Filtered DataFrame.
+        """
+        # Count missing values per row across all relevant columns
+        relevant_cols = self.numeric_cols + self.categorical_cols
+        missing_per_row = df[relevant_cols].isnull().sum(axis=1)
+        total_cols = len(relevant_cols)
+        missing_ratio = missing_per_row / total_cols
+
+        # Filter rows where missing ratio exceeds threshold
+        valid_mask = missing_ratio <= self.max_missing_ratio
+        n_filtered = (~valid_mask).sum()
+
+        if is_fit and n_filtered > 0:
+            self._n_rows_filtered = n_filtered
+            print(
+                f"  Filtered {n_filtered} rows ({n_filtered / len(df) * 100:.1f}%) "
+                f"with >{self.max_missing_ratio * 100:.0f}% missing values"
+            )
+
+        return df[valid_mask].copy()
+
     def transform(self, df: pd.DataFrame) -> np.ndarray:
         """Transform DataFrame to scaled numpy array.
 
@@ -80,6 +121,10 @@ class TabularPreprocessor:
         """
         if not self._is_fitted:
             raise RuntimeError("Preprocessor must be fit before transform")
+
+        # Filter rows with majority missing values if enabled
+        if self.max_missing_ratio is not None:
+            df = self._filter_missing_rows(df, is_fit=False)
 
         # Dummy encode categoricals
         df_cat = df[self.categorical_cols].astype("category")

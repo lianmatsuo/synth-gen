@@ -330,7 +330,9 @@ def main():
 
     # Monitor memory during training
     mem_before = get_memory_usage()
+    print(f"  Starting training at {time.strftime('%H:%M:%S')}...")
     flow.fit(X_train)
+    print(f"  Training finished at {time.strftime('%H:%M:%S')}")
     mem_after = get_memory_usage()
 
     print("  Training complete!")
