@@ -1,0 +1,29 @@
+# MIMIC-III Database Schema and Data Description
+
+## Data Description
+
+MIMIC-III is a relational database consisting of 26 tables. Tables are linked by identifiers which usually have the suffix 'ID'. For example, SUBJECT_ID refers to a unique patient, HADM_ID refers to a unique admission to the hospital, and ICUSTAY_ID refers to a unique admission to an intensive care unit.
+
+Charted events such as notes, laboratory tests, and fluid balance are stored in a series of 'events' tables. For example the OUTPUTEVENTS table contains all measurements related to output for a given patient, while the LABEVENTS table contains laboratory test results for a patient.
+
+Tables prefixed with 'D_' are dictionary tables and provide definitions for identifiers. For example, every row of CHARTEVENTS is associated with a single ITEMID which represents the concept measured, but it does not contain the actual name of the measurement. By joining CHARTEVENTS and D_ITEMS on ITEMID, it is possible to identify the concept represented by a given ITEMID.
+
+Developing the MIMIC data model involved balancing simplicity of interpretation against closeness to ground truth. As such, the model is a reflection of underlying data sources, modified over iterations of the MIMIC database in response to user feedback. Care has been taken to avoid making assumptions about the underlying data when carrying out transformations, so MIMIC-III closely represents the raw hospital data.
+
+Broadly speaking, five tables are used to define and track patient stays: ADMISSIONS; PATIENTS; ICUSTAYS; SERVICES; and TRANSFERS. Another five tables are dictionaries for cross-referencing codes against their respective definitions: D_CPT; D_ICD_DIAGNOSES; D_ICD_PROCEDURES; D_ITEMS; and D_LABITEMS. The remaining tables contain data associated with patient care, such as physiological measurements, caregiver observations, and billing information.
+
+In some cases it would be possible to merge tables—for example, the D_ICD_PROCEDURES and CPTEVENTS tables both contain detail relating to procedures and could be combined—but our approach is to keep the tables independent for clarity, since the data sources are significantly different. Rather than combining the tables within MIMIC data model, we suggest researchers develop database views and transforms as appropriate.
+
+## Key Identifiers
+
+- **SUBJECT_ID**: Unique patient identifier
+- **HADM_ID**: Unique hospital admission identifier
+- **ICUSTAY_ID**: Unique ICU stay identifier
+- **ITEMID**: Concept identifier (join with D_ITEMS for definitions)
+
+## Table Categories
+
+1. **Patient Stay Tables**: ADMISSIONS, PATIENTS, ICUSTAYS, SERVICES, TRANSFERS
+2. **Dictionary Tables**: D_CPT, D_ICD_DIAGNOSES, D_ICD_PROCEDURES, D_ITEMS, D_LABITEMS
+3. **Event Tables**: CHARTEVENTS, LABEVENTS, OUTPUTEVENTS, INPUTEVENTS_CV, INPUTEVENTS_MV, PROCEDUREEVENTS_MV, DATETIMEEVENTS, MICROBIOLOGYEVENTS, NOTEEVENTS
+4. **Other Tables**: DIAGNOSES_ICD, PROCEDURES_ICD, CPTEVENTS, DRGCODES, PRESCRIPTIONS, CALLOUT, CAREGIVERS
