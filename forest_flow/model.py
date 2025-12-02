@@ -107,6 +107,13 @@ class ForestFlow:
         """
         X_t, Y_t = self._build_training_pairs_for_t(X_dup, Z, t)
 
+        # Filter out rows with NaN targets (sklearn doesn't allow NaN in y)
+        # XGBoost can handle NaN inputs, but targets must be finite
+        valid_mask = ~np.isnan(Y_t).any(axis=1)
+        if not valid_mask.all():
+            X_t = X_t[valid_mask]
+            Y_t = Y_t[valid_mask]
+
         model = MultiOutputRegressor(XGBRegressor(**self.xgb_params))
         model.fit(X_t, Y_t)
 
